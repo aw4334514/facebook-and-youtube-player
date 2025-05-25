@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Multi-Platform Video & Facebook Post Player</title>
+  <title>Universal Player (YouTube & Facebook)</title>
   <style>
     body {
       font-family: Arial, sans-serif;
@@ -31,32 +31,27 @@
     button {
       padding: 0.5rem 1rem;
       font-size: 1rem;
-      background-color: #1877f2; /* Facebook blue */
+      background-color: #0077ff;
       border: none;
       border-radius: 4px;
       color: white;
       cursor: pointer;
-      transition: background-color 0.3s ease;
     }
     button:hover {
-      background-color: #145dbf;
+      background-color: #005fcc;
     }
     iframe {
       margin-top: 2rem;
       border: none;
       border-radius: 8px;
-      box-shadow: 0 0 15px rgba(24, 119, 242, 0.6);
+      box-shadow: 0 0 15px rgba(0, 119, 255, 0.6);
     }
-    .player-yt {
+    .player {
       width: 560px;
       height: 315px;
     }
-    .player-fb {
-      width: 500px;
-      height: 600px;
-    }
     @media (max-width: 600px) {
-      .player-yt, .player-fb {
+      .player {
         width: 100%;
         height: auto;
         min-height: 200px;
@@ -79,15 +74,10 @@
   </style>
 </head>
 <body>
-  <h1>YouTube & Facebook Video/Post Player</h1>
+  <h1>YouTube & Facebook Player</h1>
   <form id="videoForm">
-    <input
-      type="text"
-      id="videoUrl"
-      placeholder="Enter YouTube or Facebook video/post URL"
-      required
-    />
-    <button type="submit">Load</button>
+    <input type="text" id="videoUrl" placeholder="Enter YouTube/Facebook URL" required />
+    <button type="submit">Play</button>
   </form>
 
   <div id="playerContainer"></div>
@@ -97,17 +87,15 @@
     const input = document.getElementById("videoUrl");
     const playerContainer = document.getElementById("playerContainer");
 
-    function extractYouTubeID(url) {
-      const regex =
-        /(?:youtube\.com\/(?:[^\/\n\s]+\/\S+\/|(?:v|embed)\/|.*[?&]v=)|youtu\.be\/)([a-zA-Z0-9_-]{11})/;
+    function extractYouTubePlaylistId(url) {
+      const listMatch = url.match(/[?&]list=([a-zA-Z0-9_-]+)/);
+      return listMatch ? listMatch[1] : null;
+    }
+
+    function extractYouTubeVideoId(url) {
+      const regex = /(?:youtube\.com\/(?:[^\/\n\s]+\/\S+\/|(?:v|embed)\/|.*[?&]v=)|youtu\.be\/)([a-zA-Z0-9_-]{11})/;
       const match = url.match(regex);
-      if (match && match[1]) {
-        return match[1];
-      }
-      if (/^[a-zA-Z0-9_-]{11}$/.test(url)) {
-        return url;
-      }
-      return null;
+      return match ? match[1] : null;
     }
 
     function isFacebookVideo(url) {
@@ -115,63 +103,45 @@
     }
 
     function isFacebookPost(url) {
-      // Common Facebook post URL patterns include:
-      // facebook.com/{page}/posts/{postID}
-      // facebook.com/permalink.php?story_fbid=...
-      // facebook.com/share/p/{postID}/
       return (
         url.includes("facebook.com") &&
-        (
-          url.includes("/posts/") ||
-          url.includes("/permalink.php") ||
-          url.includes("/share/p/")
-        )
+        (url.includes("/posts/") || url.includes("/permalink.php") || url.includes("/share/p/"))
       );
     }
 
     form.addEventListener("submit", (e) => {
       e.preventDefault();
-      const videoInput = input.value.trim();
+      const url = input.value.trim();
 
-      if (isFacebookVideo(videoInput)) {
-        // Facebook video embed
-        const encodedUrl = encodeURIComponent(videoInput);
-        const fbEmbedUrl = `https://www.facebook.com/plugins/video.php?href=${encodedUrl}&show_text=0&width=500`;
-        playerContainer.innerHTML = `<iframe
-          src="${fbEmbedUrl}"
-          class="player-fb"
-          scrolling="no"
-          frameborder="0"
-          allowfullscreen="true"
-          allow="autoplay; clipboard-write; encrypted-media; picture-in-picture; web-share"
-        ></iframe>`;
-      } else if (isFacebookPost(videoInput)) {
-        // Facebook post embed
-        const encodedUrl = encodeURIComponent(videoInput);
-        const fbEmbedUrl = `https://www.facebook.com/plugins/post.php?href=${encodedUrl}&show_text=true&width=500`;
-        playerContainer.innerHTML = `<iframe
-          src="${fbEmbedUrl}"
-          class="player-fb"
-          scrolling="no"
-          frameborder="0"
-          allowfullscreen="true"
-          allow="autoplay; clipboard-write; encrypted-media; picture-in-picture; web-share"
-        ></iframe>`;
-      } else {
-        // YouTube
-        const videoID = extractYouTubeID(videoInput);
-        if (!videoID) {
-          alert("Please enter a valid YouTube or Facebook video/post URL.");
-          return;
-        }
-        const ytEmbedUrl = `https://www.youtube.com/embed/${videoID}`;
-        playerContainer.innerHTML = `<iframe
-          src="${ytEmbedUrl}"
-          class="player-yt"
-          allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-          allowfullscreen
-        ></iframe>`;
+      if (isFacebookVideo(url)) {
+        const encoded = encodeURIComponent(url);
+        const embedUrl = `https://www.facebook.com/plugins/video.php?href=${encoded}&show_text=0&width=500`;
+        playerContainer.innerHTML = `<iframe class="player" src="${embedUrl}" allowfullscreen allow="autoplay; clipboard-write; encrypted-media; picture-in-picture; web-share"></iframe>`;
+        return;
       }
+
+      if (isFacebookPost(url)) {
+        const encoded = encodeURIComponent(url);
+        const embedUrl = `https://www.facebook.com/plugins/post.php?href=${encoded}&show_text=true&width=500`;
+        playerContainer.innerHTML = `<iframe class="player" src="${embedUrl}" allowfullscreen allow="autoplay; clipboard-write; encrypted-media; picture-in-picture; web-share"></iframe>`;
+        return;
+      }
+
+      const playlistId = extractYouTubePlaylistId(url);
+      if (playlistId) {
+        const embedUrl = `https://www.youtube.com/embed/videoseries?list=${playlistId}`;
+        playerContainer.innerHTML = `<iframe class="player" src="${embedUrl}" allowfullscreen allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"></iframe>`;
+        return;
+      }
+
+      const videoId = extractYouTubeVideoId(url);
+      if (videoId) {
+        const embedUrl = `https://www.youtube.com/embed/${videoId}`;
+        playerContainer.innerHTML = `<iframe class="player" src="${embedUrl}" allowfullscreen allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"></iframe>`;
+        return;
+      }
+
+      alert("Invalid URL. Please enter a valid YouTube or Facebook link.");
     });
   </script>
 </body>
